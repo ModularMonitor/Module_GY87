@@ -10,3 +10,6 @@
 [submodule "HMC5883L_Simple"]
 	path = HMC5883L_Simple
 	url = https://github.com/ModularMonitor/lib-HMC5883L_Simple
+[submodule "Serial"]
+	path = Serial
+	url = https://github.com/ModularMonitor/lib-Serial
