@@ -1,0 +1,12 @@
+[submodule "I2Cdev"]
+	path = I2Cdev
+	url = https://github.com/ModularMonitor/lib-i2cdevlib
+[submodule "Adafruit-BMP085-Library"]
+	path = Adafruit-BMP085-Library
+	url = https://github.com/ModularMonitor/lib-Adafruit-BMP085-Library
+[submodule "Adafruit_BusIO"]
+	path = Adafruit_BusIO
+	url = https://github.com/ModularMonitor/lib-Adafruit_BusIO
+[submodule "HMC5883L_Simple"]
+	path = HMC5883L_Simple
+	url = https://github.com/ModularMonitor/lib-HMC5883L_Simple
