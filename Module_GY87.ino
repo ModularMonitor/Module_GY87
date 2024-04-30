@@ -1,81 +1,128 @@
-#include "I2Cdev/Arduino/MPU6050/MPU6050.h"
-#include "Adafruit-BMP085-Library/Adafruit_BMP085.h"
-#include "HMC5883L_Simple/HMC5883L_Simple/HMC5883L_Simple.h"
+#include "mcombo.h"
+#include "Serial/packaging.h"
 
+using namespace CS;
 
-MPU6050 accelgyro;
-Adafruit_BMP085 bmp;
-HMC5883L_Simple Compass;
+PackagedWired* wire;
+mGY87* mcb = nullptr;
+const auto this_device = device_id::GY87_SENSOR;
 
-
-int16_t ax, ay, az;
-int16_t gx, gy, gz;
+void callback(void*, const uint8_t, const char*, const uint8_t);
 
 void setup() {
-  Serial.begin(9600);
-  Wire.begin();
+    Serial.begin(115200);
+    while(!Serial);
 
-  // initialize devices
-  Serial.println("Initializing I2C devices...");
-
-  // initialize bmp085
-  if (!bmp.begin()) {
-    Serial.println("Could not find a valid BMP085 sensor, check wiring!");
-    while (1) {}
-  }
-
-  // initialize mpu6050
-  accelgyro.initialize();
-  Serial.println(accelgyro.testConnection() ? "MPU6050 connection successful" : "MPU6050 connection failed");
-  accelgyro.setI2CBypassEnabled(true); // set bypass mode for gateway to hmc5883L
-  
-  
-  // initialize hmc5883l
-  Compass.SetDeclination(23, 35, 'E');
-  Compass.SetSamplingMode(COMPASS_SINGLE);
-  Compass.SetScale(COMPASS_SCALE_130);
-  Compass.SetOrientation(COMPASS_HORIZONTAL_X_NORTH);
-
+    Serial.printf("Starting SLAVE\n");
+    
+    mcb = new mGY87();
+    
+    wire = new PackagedWired(config()
+        .set_slave(this_device)
+        .set_slave_callback(callback)
+        .set_led(2)
+    );
 }
 
-void loop() {
-  Serial.print("Temperature = ");
-  Serial.print(bmp.readTemperature());
-  Serial.println(" *C");
-
-  Serial.print("Pressure = ");
-  Serial.print(bmp.readPressure());
-  Serial.println(" Pa");
-  
-  // Calculate altitude assuming 'standard' barometric
-  // pressure of 1013.25 millibar = 101325 Pascal
-  Serial.print("Altitude = ");
-  Serial.print(bmp.readAltitude());
-  Serial.println(" meters");
-  Serial.print("Pressure at sealevel (calculated) = ");
-  Serial.print(bmp.readSealevelPressure());
-  Serial.println(" Pa");
-  Serial.print("Real altitude = ");
-  Serial.print(bmp.readAltitude(101500));
-  Serial.println(" meters");
-
-  
-  // read raw accel/gyro measurements from device
-  accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-  
-  // display tab-separated accel/gyro x/y/z values
-  Serial.print("a/g:\t");
-  Serial.print(ax); Serial.print("\t");
-  Serial.print(ay); Serial.print("\t");
-  Serial.print(az); Serial.print("\t");
-  Serial.print(gx); Serial.print("\t");
-  Serial.print(gy); Serial.print("\t");
-  Serial.println(gz);
-
-
-  float heading = Compass.GetHeadingDegrees();
-  Serial.print("Heading: \t");
-  Serial.println( heading );
-
-  delay(500);
+void callback(void* rw, const uint8_t expects, const char* received, const uint8_t length)
+{
+    if (length != sizeof(Requester)) return;
+    
+    PackagedWired& w = *(PackagedWired*) rw;
+    Requester req(received);
+    
+    switch(req.get_offset()) {
+    case 0:
+    {
+        const float val = mcb->get_temperature();
+        Command cmd("/gy87/bmp085/temperature", val);
+        w.slave_reply_from_callback(cmd);
+    }
+    break;
+    case 1:
+    {
+        const int64_t val = mcb->get_pressure_pa();
+        Command cmd("/gy87/bmp085/pressure", val);
+        w.slave_reply_from_callback(cmd);
+    }
+    break;
+    case 2:
+    {
+        const float val = mcb->get_altitude();
+        Command cmd("/gy87/bmp085/altitude", val);
+        w.slave_reply_from_callback(cmd);
+    }
+    break;
+    case 3:
+    {
+        const int64_t val = mcb->get_pressure_seal_level_pa();
+        Command cmd("/gy87/bmp085/pressure_sea_level", val);
+        w.slave_reply_from_callback(cmd);
+    }
+    break;
+    case 4:
+    {
+        const float val = mcb->get_real_altitude();
+        Command cmd("/gy87/bmp085/altitude_real", val);
+        w.slave_reply_from_callback(cmd);
+    }
+    break;
+    case 5:
+    {
+        const float val = mcb->get_heading();
+        Command cmd("/gy87/hmc58831/heading", val);
+        w.slave_reply_from_callback(cmd);
+    }
+    break;
+    case 6:
+    {
+        const int64_t val = mcb->get_accel_x();
+        Command cmd("/gy87/mpu6050/accel/x", val);
+        w.slave_reply_from_callback(cmd);
+    }
+    break;
+    case 7:
+    {
+        const int64_t val = mcb->get_accel_y();
+        Command cmd("/gy87/mpu6050/accel/y", val);
+        w.slave_reply_from_callback(cmd);
+    }
+    break;
+    case 8:
+    {
+        const int64_t val = mcb->get_accel_z();
+        Command cmd("/gy87/mpu6050/accel/z", val);
+        w.slave_reply_from_callback(cmd);
+    }
+    break;
+    case 9:
+    {
+        const int64_t val = mcb->get_gyro_x();
+        Command cmd("/gy87/mpu6050/gyro/x", val);
+        w.slave_reply_from_callback(cmd);
+    }
+    break;
+    case 10:
+    {
+        const int64_t val = mcb->get_gyro_y();
+        Command cmd("/gy87/mpu6050/gyro/y", val);
+        w.slave_reply_from_callback(cmd);
+    }
+    break;
+    case 11:
+    {
+        const int64_t val = mcb->get_gyro_z();
+        Command cmd("/gy87/mpu6050/gyro/z", val);
+        w.slave_reply_from_callback(cmd);
+    }
+    break;
+    default:
+    {
+        Command cmd; // invalid
+        w.slave_reply_from_callback(cmd);
+    }
+    }
 }
+
+// unused
+void loop() { vTaskDelete(NULL); }
